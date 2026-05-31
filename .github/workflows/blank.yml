@@ -1,0 +1,33 @@
+name: K3s Runner Smoke Test
+
+on:
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+  # Runs automatically on every push to the main branch
+  push:
+    branches: [ mamasterin ]
+
+jobs:
+  verify-runner:
+    # 'self-hosted' is the default label for your runner
+    runs-on: self-hosted
+    
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: System Information
+        run: |
+          echo "Checking system details..."
+          echo "User: $(whoami)"
+          echo "Hostname: $(hostname)"
+          echo "OS: $(cat /etc/os-release | grep PRETTY_NAME)"
+
+      - name: K3s Connection Check
+        run: |
+          echo "Testing access to K3s cluster..."
+          kubectl version --client
+          kubectl get nodes
+          
+      - name: Success Message
+        run: echo "The GitHub Runner is successfully executing scripts on the K3s host!"
