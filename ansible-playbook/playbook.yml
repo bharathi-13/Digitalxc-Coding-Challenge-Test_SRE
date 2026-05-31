@@ -1,0 +1,56 @@
+---
+- name: Install K3s on Ubuntu 24.04
+  hosts: k3s_server
+  vars:
+    # You can change this to 'agent' if you were configuring workers
+    k3s_mode: "server" 
+    username: "bharathi"
+
+  tasks:
+    - name: Update apt cache and install dependencies
+      apt:
+        update_cache: yes
+        name:
+          - curl
+          - ca-certificates
+        state: present
+
+    - name: Check if K3s is already installed
+      stat:
+        path: /usr/local/bin/k3s
+      register: k3s_bin
+
+    - name: Download and run K3s installation script
+      shell: "curl -sfL https://get.k3s.io | sh -"
+      when: not k3s_bin.stat.exists
+      environment:
+        # This flag allows group-read access to the config file
+        INSTALL_K3S_EXEC: "{{ k3s_mode }} --write-kubeconfig-mode 644"
+
+    - name: Wait for node-token to be generated
+      wait_for:
+        path: /var/lib/rancher/k3s/server/node-token
+      when: k3s_mode == "server"
+
+    - name: Create .kube directory for the user
+      file:
+        path: "/home/{{ username }}/.kube"
+        state: directory
+        owner: "{{ username }}"
+        group: "{{ username }}"
+        mode: '0755'
+
+    - name: Copy K3s config to user's home
+      copy:
+        src: /etc/rancher/k3s/k3s.yaml
+        dest: "/home/{{ username }}/.kube/config"
+        remote_src: yes
+        owner: "{{ username }}"
+        group: "{{ username }}"
+        mode: '0600'
+
+    # - name: Update K3s config to use localhost instead of 127.0.0.1 (optional)
+    #   replace:
+    #     path: "/home/{{ username }}/.kube/config"
+    #     regexp: '127.0.0.1'
+    #     replace: 'localhost'
