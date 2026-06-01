@@ -27,4 +27,5 @@ jobs:
       # Step 3: Optional Verify Rollout
       - name: Verify Deployment Rollout Status
         run: |
-          sudo k3s kubectl rollout status deployment/nginx-deployment --timeout=60s
+          # sudo k3s kubectl rollout status deployment/nginx-deployment --timeout=60s
+          kubectl rollout status deployment/nginx-deployment --timeout=60s
