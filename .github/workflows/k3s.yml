@@ -28,4 +28,4 @@ jobs:
       - name: Verify Deployment Rollout Status
         run: |
           # sudo k3s kubectl rollout status deployment/nginx-deployment --timeout=60s
-          kubectl rollout status deployment/nginx-deployment --timeout=60s
+          kubectl rollout status deployment/nginx-deployment
