@@ -1,39 +1,11 @@
 ---
-# 1. Define the Custom HTML Content
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: nginx-html-config
-  namespace: default
-data:
-  index.html: |
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <title>Welcome to K3s</title>
-        <style>
-            body { font-family: sans-serif; text-align: center; margin-top: 10%; background-color: #f4f6f9; }
-            h1 { color: #2c3e50; }
-            p { color: #7f8c8d; }
-        </style>
-    </head>
-    <body>
-        <h1>Hello from your Self-Hosted K3s Cluster!</h1>
-        <p>This deployment is managed automatically via GitHub Actions pipelines.</p>
-    </body>
-    </html>
-
----
-# 2. Deploy the Nginx Pods
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: nginx-deployment
   namespace: default
-  labels:
-    app: nginx
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
       app: nginx
@@ -48,15 +20,18 @@ spec:
         ports:
         - containerPort: 80
         volumeMounts:
-        - name: html-volume
-          mountPath: /usr/share/nginx/html
+        - name: local-html-volume
+          # This is where Nginx looks for files inside the container
+          mountPath: /usr/share/nginx/html 
       volumes:
-      - name: html-volume
-        configMap:
-          name: nginx-html-config
-
+      - name: local-html-volume
+        # hostPath mounts a directory from the host node into the pod
+        hostPath:
+          # ⚠️ Change this to the absolute path of the folder on your server
+          path: ./nginx/
+          # DirectoryOrCreate ensures K3s creates the folder on the host if it doesn't exist
+          type: DirectoryOrCreate
 ---
-# 3. Expose Nginx Internally and Externally via Port 80
 apiVersion: v1
 kind: Service
 metadata:
@@ -72,7 +47,6 @@ spec:
     app: nginx
 
 ---
-# 4. K3s Ingress Controller (Traefik) Routing Rule
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
