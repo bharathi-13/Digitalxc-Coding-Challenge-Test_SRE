@@ -1,0 +1,93 @@
+---
+# 1. Define the Custom HTML Content
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nginx-html-config
+  namespace: default
+data:
+  index.html: |
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Welcome to K3s</title>
+        <style>
+            body { font-family: sans-serif; text-align: center; margin-top: 10%; background-color: #f4f6f9; }
+            h1 { color: #2c3e50; }
+            p { color: #7f8c8d; }
+        </style>
+    </head>
+    <body>
+        <h1>Hello from your Self-Hosted K3s Cluster!</h1>
+        <p>This deployment is managed automatically via GitHub Actions pipelines.</p>
+    </body>
+    </html>
+
+---
+# 2. Deploy the Nginx Pods
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-deployment
+  namespace: default
+  labels:
+    app: nginx
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:alpine
+        ports:
+        - containerPort: 80
+        volumeMounts:
+        - name: html-volume
+          mountPath: /usr/share/nginx/html
+      volumes:
+      - name: html-volume
+        configMap:
+          name: nginx-html-config
+
+---
+# 3. Expose Nginx Internally and Externally via Port 80
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx-service
+  namespace: default
+spec:
+  type: ClusterIP # Keeps it safe internally. (Change to LoadBalancer if using an external cloud LB provider)
+  ports:
+  - port: 80
+    targetPort: 80
+    protocol: TCP
+  selector:
+    app: nginx
+
+---
+# 4. K3s Ingress Controller (Traefik) Routing Rule
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: nginx-ingress
+  namespace: default
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: web
+spec:
+  rules:
+  - http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: nginx-service
+            port:
+              number: 80

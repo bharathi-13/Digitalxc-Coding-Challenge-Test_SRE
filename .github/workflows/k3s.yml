@@ -1,33 +1,29 @@
-name: K3s Runner Smoke Test
+name: Deploy changes to K3s
 
 on:
-  # Allows you to run this workflow manually from the Actions tab
-  workflow_dispatch:
-  # Runs automatically on every push to the main branch
   push:
-    branches: [ master ]
+    branches:
+      - master # Triggers on every push to your master branch
+    # paths:
+    #   - 'k8s/**' # Optional: Only trigger if files inside the k8s folder change
 
 jobs:
-  verify-runner:
-    # 'self-hosted' is the default label for your runner
-    runs-on: self-hosted
-    
+  deploy-nginx-to-k3s:
+    # Crucial: This directs the workflow to run on your newly registered AWS instance
+    runs-on: k3s 
+
     steps:
-      - name: Checkout Code
+      # Step 1: Clone the updated code from GitHub onto the server workspace
+      - name: Checkout Source Code
         uses: actions/checkout@v4
 
-      - name: System Information
+      # Step 2: Apply the updated manifest infrastructure changes
+      - name: Apply Kubernetes Manifests
         run: |
-          echo "Checking system details..."
-          echo "User: $(whoami)"
-          echo "Hostname: $(hostname)"
-          echo "OS: $(cat /etc/os-release | grep PRETTY_NAME)"
+          # Use the system's k3s kubectl wrapper to apply configurations safely
+          sudo k3s kubectl apply -f k8s/nginx-deployment.yml
 
-      - name: K3s Connection Check
+      # Step 3: Optional Verify Rollout
+      - name: Verify Deployment Rollout Status
         run: |
-          echo "Testing access to K3s cluster..."
-          kubectl version --client
-          kubectl get nodes
-          
-      - name: Success Message
-        run: echo "The GitHub Runner is successfully executing scripts on the K3s host!"
+          sudo k3s kubectl rollout status deployment/nginx-deployment --timeout=60s
