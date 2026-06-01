@@ -21,7 +21,8 @@ jobs:
       - name: Apply Kubernetes Manifests
         run: |
           # Use the system's k3s kubectl wrapper to apply configurations safely
-          sudo k3s kubectl apply -f k8s/nginx-deployment.yml
+          # sudo k3s kubectl apply -f k8s/nginx-deployment.yml
+          kubectl apply -f k8s/nginx-deployment.yml
 
       # Step 3: Optional Verify Rollout
       - name: Verify Deployment Rollout Status
