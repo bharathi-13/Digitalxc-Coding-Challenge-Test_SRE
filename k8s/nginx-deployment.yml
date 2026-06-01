@@ -28,7 +28,7 @@ spec:
         # hostPath mounts a directory from the host node into the pod
         hostPath:
           # ⚠️ Change this to the absolute path of the folder on your server
-          path: ./nginx/
+          path: /actions-runner/_work/Digitalxc-Coding-Challenge-Test_SRE/Digitalxc-Coding-Challenge-Test_SRE/nginx
           # DirectoryOrCreate ensures K3s creates the folder on the host if it doesn't exist
           type: DirectoryOrCreate
 ---
