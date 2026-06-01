@@ -1,11 +1,6 @@
 ---
 - name: Install K3s on Ubuntu 24.04
   hosts: k3s_server
-  vars:
-    # You can change this to 'agent' if you were configuring workers
-    k3s_mode: "server" 
-    username: "bharathi"
-
   tasks:
     - name: Update apt cache and install dependencies
       apt:
@@ -49,8 +44,92 @@
         group: "{{ username }}"
         mode: '0600'
 
-    # - name: Update K3s config to use localhost instead of 127.0.0.1 (optional)
-    #   replace:
-    #     path: "/home/{{ username }}/.kube/config"
-    #     regexp: '127.0.0.1'
-    #     replace: 'localhost'
+- name: Configure Self-Hosted GitHub Actions Runner
+  hosts: k3s_server
+  become: true
+  tasks:
+    - name: Ensure required dependencies are installed
+      apt:
+        name:
+          - curl
+          - tar
+          - sudo
+          - libicu-dev  # Required for .NET core apps like the runner
+        state: present
+        update_cache: yes
+      when: ansible_os_family == "Debian"
+
+    - name: Create a dedicated group for the runner
+      group:
+        name: "{{ runner_user }}"
+        state: present
+
+    - name: Create a dedicated user for the runner
+      user:
+        name: "{{ runner_user }}"
+        group: "{{ runner_user }}"
+        shell: /bin/bash
+        home: "/home/{{ runner_user }}"
+        create_home: yes
+
+    - name: Ensure runner installation directory exists
+      file:
+        path: "{{ runner_dir }}"
+        state: directory
+        owner: "{{ runner_user }}"
+        group: "{{ runner_user }}"
+        mode: '0755'
+
+    - name: Download GitHub Actions Runner package
+      get_url:
+        url: "https://github.com/actions/runner/releases/download/v{{ runner_version }}/actions-runner-linux-x64-{{ runner_version }}.tar.gz"
+        dest: "/tmp/actions-runner.tar.gz"
+        mode: '0644'
+
+    - name: Extract runner package to installation directory
+      unarchive:
+        src: "/tmp/actions-runner.tar.gz"
+        dest: "{{ runner_dir }}"
+        remote_src: yes
+        owner: "{{ runner_user }}"
+        group: "{{ runner_user }}"
+        creates: "{{ runner_dir }}/config.sh"
+
+    - name: Install runner framework dependencies
+      command: "./bin/installdependencies.sh"
+      args:
+        chdir: "{{ runner_dir }}"
+      register: dep_install
+      changed_when: "dep_install.rc == 0"
+
+    - name: Check if runner is already configured
+      stat:
+        path: "{{ runner_dir }}/.runner"
+      register: runner_config_file
+
+    - name: Configure and register the GitHub Actions Runner
+      become_user: "{{ runner_user }}"
+      command: >
+        ./config.sh 
+        --url {{ github_url }} 
+        --token {{ github_token }} 
+        --name {{ runner_name }} 
+        --labels {{ runner_labels }} 
+        --unattended 
+        --replace
+      args:
+        chdir: "{{ runner_dir }}"
+      when: not runner_config_file.stat.exists
+
+    - name: Install the runner as a systemd service
+      command: "./svc.sh install {{ runner_user }}"
+      args:
+        chdir: "{{ runner_dir }}"
+        creates: "/etc/systemd/system/actions.runner.{{ github_url | urlsplit('path') | basename }}.{{ runner_name }}.service"
+
+    - name: Start and enable the runner service
+      command: "./svc.sh start"
+      args:
+        chdir: "{{ runner_dir }}"
+      register: svc_start
+      changed_when: "'Active: active' in svc_start.stdout or svc_start.rc == 0"

@@ -1,0 +1,6 @@
+terraform/.terraform*
+terraform/terraform*
+ansible-playbook/ansible.cfg
+ansible-playbook/inventory
+ansible-playbook/host_vars
+ssh-key
